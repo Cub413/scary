@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>LIAS DREAM</title>
+
+<style>
+*{box-sizing:border-box}
+
+html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    overflow:hidden;
+    background:#050505;
+    color:#aaa;
+    font-family:"Courier New",monospace;
+}
+
+#game{
+    position:fixed;
+    inset:0;
+    width:100%;
+    height:100%;
+    border:0;
+    opacity:0;
+    transition:opacity 1.2s ease;
+    background:#000;
+}
+
+#loading{
+    position:fixed;
+    inset:0;
+    z-index:20;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#050505;
+    overflow:hidden;
+    transition:opacity 1.2s ease,visibility 1.2s;
+}
+
+#loading.hide{
+    opacity:0;
+    visibility:hidden;
+}
+
+.noise{
+    position:absolute;
+    inset:-50%;
+    opacity:.08;
+    pointer-events:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
+    animation:noise .12s steps(2) infinite;
+}
+
+.scanlines{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:repeating-linear-gradient(
+        0deg,
+        rgba(255,255,255,.035) 0,
+        rgba(255,255,255,.035) 1px,
+        transparent 1px,
+        transparent 4px
+    );
+}
+
+.vignette{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    background:radial-gradient(
+        ellipse at center,
+        transparent 25%,
+        rgba(0,0,0,.35) 65%,
+        rgba(0,0,0,.96) 100%
+    );
+}
+
+.box{
+    position:relative;
+    width:min(88%,430px);
+    text-align:center;
+    padding:35px 22px;
+}
+
+.warning{
+    font-size:10px;
+    letter-spacing:4px;
+    color:#777;
+    margin-bottom:28px;
+    animation:flicker 4s infinite;
+}
+
+.title{
+    font-size:clamp(22px,7vw,38px);
+    letter-spacing:8px;
+    color:#d0d0d0;
+    margin-bottom:14px;
+    text-shadow:0 0 8px rgba(255,255,255,.18);
+    animation:glitch 5s infinite;
+}
+
+.message{
+    min-height:35px;
+    font-size:10px;
+    letter-spacing:2px;
+    color:#666;
+    line-height:1.8;
+}
+
+.progress{
+    width:100%;
+    height:3px;
+    margin:25px 0 12px;
+    background:#151515;
+    overflow:hidden;
+    border:1px solid #222;
+}
+
+.bar{
+    height:100%;
+    width:0%;
+    background:#aaa;
+    box-shadow:0 0 8px #aaa;
+}
+
+.percent{
+    font-size:9px;
+    letter-spacing:3px;
+    color:#555;
+}
+
+.timer{
+    margin-top:25px;
+    font-size:8px;
+    letter-spacing:2px;
+    color:#333;
+}
+
+.dot{
+    display:inline-block;
+    width:5px;
+    height:5px;
+    margin:0 2px;
+    background:#777;
+    animation:blink 1s infinite;
+}
+.dot:nth-child(2){animation-delay:.2s}
+.dot:nth-child(3){animation-delay:.4s}
+
+@keyframes noise{
+    0%{transform:translate(0,0)}
+    25%{transform:translate(3%, -2%)}
+    50%{transform:translate(-2%, 3%)}
+    75%{transform:translate(2%, 2%)}
+    100%{transform:translate(-3%, -1%)}
+}
+
+@keyframes flicker{
+    0%,18%,22%,63%,66%,100%{opacity:1}
+    19%,21%,64%{opacity:.25}
+}
+
+@keyframes glitch{
+    0%,90%,100%{transform:none}
+    91%{transform:translate(-2px,1px)}
+    92%{transform:translate(2px,-1px)}
+    93%{transform:none}
+}
+
+@keyframes blink{
+    0%,100%{opacity:.15}
+    50%{opacity:1}
+}
+</style>
+</head>
+
+<body>
+
+<!--
+    La página real empieza a cargarse inmediatamente,
+    pero permanece completamente oculta durante 30 segundos.
+-->
+<iframe
+    id="game"
+    src="https://liasdream.bonto.run/"
+    allow="fullscreen; autoplay; gamepad"
+    referrerpolicy="no-referrer">
+</iframe>
+
+<div id="loading">
+    <div class="noise"></div>
+    <div class="scanlines"></div>
+    <div class="vignette"></div>
+
+    <div class="box">
+        <div class="warning">ARCHIVE / SYSTEM 04</div>
+
+        <div class="title">LIAS DREAM</div>
+
+        <div class="message" id="message">
+            RECUPERANDO DATOS
+            <span class="dot"></span>
+            <span class="dot"></span>
+            <span class="dot"></span>
+        </div>
+
+        <div class="progress">
+            <div class="bar" id="bar"></div>
+        </div>
+
+        <div class="percent" id="percent">0%</div>
+
+        <div class="timer" id="timer">
+            NO INTERRUMPIR EL PROCESO
+        </div>
+    </div>
+</div>
+
+<script>
+const DURATION = 30000;
+
+const loading = document.getElementById("loading");
+const game = document.getElementById("game");
+const bar = document.getElementById("bar");
+const percent = document.getElementById("percent");
+const message = document.getElementById("message");
+const timer = document.getElementById("timer");
+
+const messages = [
+    "RECUPERANDO DATOS",
+    "RECONSTRUYENDO ARCHIVOS",
+    "VERIFICANDO MEMORIA",
+    "LEYENDO REGISTROS",
+    "RESTAURANDO SESIÓN",
+    "CASI TERMINADO"
+];
+
+const start = performance.now();
+
+function update(now){
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / DURATION, 1);
+    const value = Math.floor(progress * 100);
+
+    bar.style.width = value + "%";
+    percent.textContent = value + "%";
+
+    const index = Math.min(
+        Math.floor(progress * messages.length),
+        messages.length - 1
+    );
+
+    message.innerHTML =
+        messages[index] +
+        ' <span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+
+    const remaining = Math.ceil((DURATION - elapsed) / 1000);
+
+    if(remaining > 0){
+        timer.textContent =
+            "PROCESO EN CURSO // " + remaining + "s";
+        requestAnimationFrame(update);
+    }else{
+        finish();
+    }
+}
+
+function finish(){
+    bar.style.width = "100%";
+    percent.textContent = "100%";
+    message.textContent = "ACCESO CONCEDIDO";
+    timer.textContent = "CARGA COMPLETADA";
+
+    setTimeout(()=>{
+        game.style.opacity = "1";
+        loading.classList.add("hide");
+
+        setTimeout(()=>{
+            loading.remove();
+        },1400);
+    },500);
+}
+
+requestAnimationFrame(update);
+</script>
+
+</body>
+              </html>
